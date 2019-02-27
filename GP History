@@ -1,0 +1,31 @@
+SELECT
+
+-- Calculate order type --
+-- SOP30200 PO header Info --
+-- SOP30300 Line Item data --
+
+-- Parse out Order Type from SOP Number
+CASE 
+WHEN LEFT(F.SOPNUMBE,2) in ('4S', '5S') Then 'Sales'
+WHEN LEFT(F.SOPNUMBE,2) in ('4E', '5E') Then 'Trials'
+WHEN LEFT(F.SOPNUMBE,2) in ('4C', '5C') Then 'Promo'
+ELSE 'N/A'
+END AS OrderType,
+-- Assign COGS account for return programs 
+CASE
+WHEN CSLSINDX = 2399 Then 'Serentify'
+WHEN CSLSINDX = 1358 Then 'Ranier'
+Else 'Other'
+END AS COGS_Account,
+
+D.ITEMNMBR as ProdID,
+D.LOCNCODE as WHS,
+SUM(QUANTITY) as QTY,
+FISCAL_M_ID as FM
+
+FROM FACT.GP_SOP30300 D
+JOIN FACT.GP_SOP30200 F on D.SOPNUMBE = F.SOPNUMBE
+JOIN FACT.FISCAL_DAY T on F.ACTLSHIP = DT
+WHERE D.LOCNCODE in ('DCL', 'USE','AIL','JPN','CHN') -- Include only "real" DCs
+AND LEFT(F.SOPNUMBE,2) in('4S','5S','4E','5E','4C','5C') -- Exclude financial records, inventory movements, returns, ect. 
+GROUP BY OrderType, D.ITEMNMBR, D.LOCNCODE, FISCAL_M_ID, CSLSINDX,COGS_Account
